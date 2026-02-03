@@ -71,6 +71,7 @@ var string t44 = "Preset automático:\nAplica valores predefinidos según el tip
 var string t45 = "Preset manual:\nSelecciona un perfil cuando el preset automático está desactivado."
 var string t46 = "Preset temporalidad:\nAjuste adicional de sensibilidad (Scalp/Intra/Swing) aplicado a Period y a los límites de perfil."
 var string t47 = "Aplicar a perfiles/performance:\nSi está activo, los presets también ajustan Rows, Delta y límites de perfil."
+var string t48 = "Forzar tipo de ticker:\nPermite seleccionar manualmente el tipo si TradingView no lo detecta correctamente."
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
 
 // ~~ Inputs {
@@ -89,6 +90,15 @@ presetManual = input.string(
      group = "Inicio",
      inline = "preset",
      tooltip = t45
+     )
+
+tickerOverride = input.string(
+     "Auto",
+     "Forzar tipo",
+     options = ["Auto", "Cripto majors / Forex", "Cripto alt/meme", "Acciones/ETFs", "Bonos"],
+     group = "Inicio",
+     inline = "preset",
+     tooltip = t48
      )
 
 timePreset = input.string(
@@ -114,7 +124,8 @@ autoPreset =
      syminfo.type == "bond" ? "Bonos" :
      "Cripto majors / Forex"
 
-preset = useAutoPreset ? autoPreset : presetManual
+presetAutoBase = tickerOverride == "Auto" ? autoPreset : tickerOverride
+preset = useAutoPreset ? presetAutoBase : presetManual
 
 // preset values (estrictos) por tipo de ticker
 pPeriod =
