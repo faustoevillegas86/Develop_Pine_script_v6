@@ -66,7 +66,7 @@ var string t40 = "Projection Box Text Color:\nText color for the projection leve
 var string t41 = "Projection Box Text Size:\nFont size of the projection level values shown inside the boxes."
 
 var string t42 = "Rango visible:\nLimita cálculos de perfil a las últimas N barras para TradingView Free."
-var string t43 = "Máx barras perfil:\nCap de barras procesadas. Se ajusta automáticamente para no quedar por debajo de Period."
+var string t43 = "Máx barras perfil:\nCap estrictamente la cantidad de barras procesadas (<=50)."
 var string t44 = "Preset automático:\nAplica valores predefinidos según el tipo de ticker para Period/Projection/Rows/Delta/Performance."
 var string t45 = "Preset manual:\nSelecciona un perfil cuando el preset automático está desactivado."
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
@@ -243,10 +243,10 @@ visibleBarsInput = input.int(
      )
 
 maxLoopBarsInput = input.int(
-     100,
+     50,
      "Máx barras perfil",
      minval = 10,
-     maxval = 200,
+     maxval = 50,
      group = "Performance Free",
      inline = "perf2",
      tooltip = t43
@@ -317,8 +317,6 @@ rows         = useAutoPreset ? pRows         : rowsInput
 deltaMaxWidth = useAutoPreset ? pDeltaWidth  : deltaMaxWidthInput
 visibleBars  = useAutoPreset ? pVisibleBars  : visibleBarsInput
 maxLoopBars  = useAutoPreset ? pMaxLoopBars  : maxLoopBarsInput
-minVisibleBars = math.max(visibleBars, prd)
-minLoopBars    = math.min(math.max(maxLoopBars, prd), 200)
 
 deltaBullColor = input.color(
      color.new(color.lime, 80),
@@ -730,10 +728,10 @@ if not na(HB) and not na(LB) and not na(hiPrice) and not na(loPrice) and not na(
 
             startBar = math.min(hiBar, loBar)
             endBar   = math.max(hiBar, loBar)
-            visibleStart = bar_index - minVisibleBars + 1
+            visibleStart = bar_index - visibleBars + 1
             startBar := showHistorical ? startBar : math.max(startBar, visibleStart)
-            if endBar - startBar + 1 > minLoopBars
-                startBar := endBar - minLoopBars + 1
+            if endBar - startBar + 1 > maxLoopBars
+                startBar := endBar - maxLoopBars + 1
 
             if startBar <= endBar
                 for bi = startBar to endBar
@@ -823,10 +821,10 @@ if not na(HB) and not na(LB) and not na(hiPrice) and not na(loPrice) and not na(
 
             startBar = math.min(hiBar, loBar)
             endBar   = math.max(hiBar, loBar)
-            visibleStart = bar_index - minVisibleBars + 1
+            visibleStart = bar_index - visibleBars + 1
             startBar := showHistorical ? startBar : math.max(startBar, visibleStart)
-            if endBar - startBar + 1 > minLoopBars
-                startBar := endBar - minLoopBars + 1
+            if endBar - startBar + 1 > maxLoopBars
+                startBar := endBar - maxLoopBars + 1
 
             if startBar <= endBar
                 // accumulate bull/bear volume per band
