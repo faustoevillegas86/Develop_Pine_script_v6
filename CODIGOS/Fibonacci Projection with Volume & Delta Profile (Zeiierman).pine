@@ -67,6 +67,7 @@ var string t41 = "Projection Box Text Size:\nFont size of the projection level v
 
 var string t42 = "Rango visible:\nLimita cálculos de perfil a las últimas N barras para TradingView Free."
 var string t43 = "Máx barras perfil:\nCap de barras procesadas. Se ajusta automáticamente para no quedar por debajo de Period."
+var string t43 = "Máx barras perfil:\nCap estrictamente la cantidad de barras procesadas (<=50)."
 var string t44 = "Preset automático:\nAplica valores predefinidos según el tipo de ticker para Period/Projection/Rows/Delta/Performance."
 var string t45 = "Preset manual:\nSelecciona un perfil cuando el preset automático está desactivado."
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
@@ -734,6 +735,10 @@ if not na(HB) and not na(LB) and not na(hiPrice) and not na(loPrice) and not na(
             startBar := showHistorical ? startBar : math.max(startBar, visibleStart)
             if endBar - startBar + 1 > minLoopBars
                 startBar := endBar - minLoopBars + 1
+            visibleStart = bar_index - visibleBars + 1
+            startBar := showHistorical ? startBar : math.max(startBar, visibleStart)
+            if endBar - startBar + 1 > maxLoopBars
+                startBar := endBar - maxLoopBars + 1
 
             if startBar <= endBar
                 for bi = startBar to endBar
@@ -827,6 +832,10 @@ if not na(HB) and not na(LB) and not na(hiPrice) and not na(loPrice) and not na(
             startBar := showHistorical ? startBar : math.max(startBar, visibleStart)
             if endBar - startBar + 1 > minLoopBars
                 startBar := endBar - minLoopBars + 1
+            visibleStart = bar_index - visibleBars + 1
+            startBar := showHistorical ? startBar : math.max(startBar, visibleStart)
+            if endBar - startBar + 1 > maxLoopBars
+                startBar := endBar - maxLoopBars + 1
 
             if startBar <= endBar
                 // accumulate bull/bear volume per band
