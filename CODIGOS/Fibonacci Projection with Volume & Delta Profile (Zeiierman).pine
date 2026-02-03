@@ -1,9 +1,14 @@
-// This work is licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International  
+// This work is licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
 // https://creativecommons.org/licenses/by-nc-sa/4.0/
-// © Zeiierman {
+// © Zeiierman
+// Base documental (Pine Script v6): indicator(), input.*, ta.*, line.*, label.*, box.*, array.*, color.*, chart.point.from_index() - ver complete_reference.md
 //@version=6
-indicator("Fibonacci Projection with Volume & Delta Profile (Zeiierman)", shorttitle ="Fibonacci Projection (Zeiierman)" ,overlay = true, max_bars_back = 5000)
-//}
+indicator(
+     "Fibonacci Projection with Volume & Delta Profile (Zeiierman)",
+     shorttitle = "Fibonacci Projection (Zeiierman)",
+     overlay = true,
+     max_bars_back = 5000
+     )
 
 // ~~ Tooltips {
 var string t1  = "Period:\nNumber of bars used to detect swing highs and swing lows. Larger values give fewer but larger swings."
@@ -59,10 +64,77 @@ var string t39 = "Projection Box Vertical Align:\nVertical alignment of text ins
 
 var string t40 = "Projection Box Text Color:\nText color for the projection level values shown inside the boxes."
 var string t41 = "Projection Box Text Size:\nFont size of the projection level values shown inside the boxes."
+
+var string t42 = "Rango visible:\nLimita cálculos de perfil a las últimas N barras para TradingView Free."
+var string t43 = "Máx barras perfil:\nCap de barras procesadas. Se ajusta automáticamente para no quedar por debajo de Period."
+var string t44 = "Preset automático:\nAplica valores predefinidos según el tipo de ticker para Period/Projection/Rows/Delta/Performance."
+var string t45 = "Preset manual:\nSelecciona un perfil cuando el preset automático está desactivado."
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
 
 // ~~ Inputs {
-prd = input.int(
+useAutoPreset = input.bool(
+     true,
+     "Preset automático (ticker)",
+     group = "Inicio",
+     inline = "preset",
+     tooltip = t44
+     )
+
+presetManual = input.string(
+     "Cripto majors / Forex",
+     "",
+     options = ["Cripto majors / Forex", "Cripto alt/meme", "Acciones/ETFs", "Bonos"],
+     group = "Inicio",
+     inline = "preset",
+     tooltip = t45
+     )
+
+autoPreset =
+     syminfo.type == "crypto" or syminfo.type == "forex" ? "Cripto majors / Forex" :
+     syminfo.type == "stock" or syminfo.type == "fund" or syminfo.type == "index" ? "Acciones/ETFs" :
+     syminfo.type == "bond" ? "Bonos" :
+     "Cripto majors / Forex"
+
+preset = useAutoPreset ? autoPreset : presetManual
+
+// preset values (estrictos) por tipo de ticker
+pPeriod =
+     preset == "Cripto majors / Forex" ? 120 :
+     preset == "Cripto alt/meme"       ? 150 :
+     preset == "Acciones/ETFs"         ? 100 :
+                                         160
+
+pProjection =
+     preset == "Cripto majors / Forex" ? 0.618 :
+     preset == "Cripto alt/meme"       ? 0.786 :
+     preset == "Acciones/ETFs"         ? 0.5   :
+                                         0.382
+
+pRows =
+     preset == "Cripto majors / Forex" ? 12 :
+     preset == "Cripto alt/meme"       ? 8  :
+     preset == "Acciones/ETFs"         ? 12 :
+                                         8
+
+pDeltaWidth =
+     preset == "Cripto majors / Forex" ? 30 :
+     preset == "Cripto alt/meme"       ? 25 :
+     preset == "Acciones/ETFs"         ? 30 :
+                                         20
+
+pVisibleBars =
+     preset == "Cripto majors / Forex" ? 200 :
+     preset == "Cripto alt/meme"       ? 200 :
+     preset == "Acciones/ETFs"         ? 200 :
+                                         200
+
+pMaxLoopBars =
+     preset == "Cripto majors / Forex" ? 50 :
+     preset == "Cripto alt/meme"       ? 50 :
+     preset == "Acciones/ETFs"         ? 50 :
+                                         50
+
+prdInput = input.int(
      100,
      "Period",
      group   = "Fib Settings",
@@ -70,7 +142,7 @@ prd = input.int(
      tooltip = t1
      )
 
-lvl = input.float(
+lvlInput = input.float(
      0.618,
      title   = "Projection Level",
      group   = "Fib Settings",
@@ -152,19 +224,47 @@ hiloLineWidth = input.int(
      tooltip = t12 + "\n\n" + t13 + "\n\n" + t14
      )
 
-// Fib volume profile inputs 
+// Performance Free
+showHistorical = input.bool(
+     false,
+     "Mostrar histórico",
+     group = "Performance Free",
+     inline = "perf"
+     )
+
+visibleBarsInput = input.int(
+     200,
+     "Rango visible",
+     minval = 50,
+     maxval = 500,
+     group = "Performance Free",
+     inline = "perf",
+     tooltip = t42
+     )
+
+maxLoopBarsInput = input.int(
+     100,
+     "Máx barras perfil",
+     minval = 10,
+     maxval = 200,
+     group = "Performance Free",
+     inline = "perf2",
+     tooltip = t43
+     )
+
+// Fib volume profile inputs
 showFibProfile = input.bool(
-     true,
+     false,
      "Fib Volume Profile",
      group   = "Fib Volume Profile",
      inline  = "fibprof"
      )
 
-rows = input.int(
+rowsInput = input.int(
      10,
      "Rows",
      2,
-     100,
+     30,
      group   = "Fib Volume Profile",
      inline  = "fibprof"
      )
@@ -200,7 +300,7 @@ showFibDelta = input.bool(
      inline  = "delta"
      )
 
-deltaMaxWidth = input.int(
+deltaMaxWidthInput = input.int(
      30,
      "Max Width",
      minval  = 5,
@@ -209,6 +309,16 @@ deltaMaxWidth = input.int(
      inline  = "delta",
      tooltip = t20 + "\n\n" + t21
      )
+
+// effective parameters (preset or manual)
+prd          = useAutoPreset ? pPeriod       : prdInput
+lvl          = useAutoPreset ? pProjection   : lvlInput
+rows         = useAutoPreset ? pRows         : rowsInput
+deltaMaxWidth = useAutoPreset ? pDeltaWidth  : deltaMaxWidthInput
+visibleBars  = useAutoPreset ? pVisibleBars  : visibleBarsInput
+maxLoopBars  = useAutoPreset ? pMaxLoopBars  : maxLoopBarsInput
+minVisibleBars = math.max(visibleBars, prd)
+minLoopBars    = math.min(math.max(maxLoopBars, prd), 200)
 
 deltaBullColor = input.color(
      color.new(color.lime, 80),
@@ -265,7 +375,7 @@ projLineStyle =
      projLineStyleStr == "Arrow Left"  ? line.style_arrow_left :
                                          line.style_arrow_right
 
-// Projection % LABELS style 
+// Projection % LABELS style
 projPercBullColor = input.color(
      color.new(color.green, 0),
      "Bullish Bg",
@@ -461,7 +571,6 @@ cleaner(a, idx) =>
 
 // ~~ Main logic {
 if not na(HB) and not na(LB) and not na(hiPrice) and not na(loPrice) and not na(hiBar) and not na(loBar)
-    // update swing lines
     // update swing lines (position + live style)
     line.set_xy1(hiLine, hiBar, hiPrice)
     line.set_xy2(hiLine, bar_index, hiPrice)
@@ -485,7 +594,7 @@ if not na(HB) and not na(LB) and not na(hiPrice) and not na(loPrice) and not na(
     cols = array.from(fibColor236, fibColor382, fibColor500, fibColor618, fibColor786)
 
     baseOffset = HB > LB ? LB : HB
-    xFibStart  = bar_index - baseOffset 
+    xFibStart  = bar_index - baseOffset
 
     for [i, e] in lvls
         f  = fibbFunc(e, HB < LB, hiPrice, loPrice)
@@ -509,11 +618,11 @@ if not na(HB) and not na(LB) and not na(hiPrice) and not na(loPrice) and not na(
              textcolor = fibLabelColor,
              style      = label.style_label_left,
              size       = fibLabelSize,
-             color =cols.get(i)
+             color = cols.get(i)
              )
             array.push(fibbLabels, lbl)
 
-        // Projection part 
+    // Projection part
     fibb  = fibbFunc(lvl, LB > HB, hiPrice, loPrice)
     fibb2 = LB < HB ?
      fibbFunc(lvl, true,  fibb,  loPrice) :
@@ -585,7 +694,7 @@ if not na(HB) and not na(LB) and not na(hiPrice) and not na(loPrice) and not na(
         // keep track of the rightmost edge of the last projection box
         deltaStartX := na(deltaStartX) ? box.get_right(bx) : math.max(deltaStartX, box.get_right(bx))
 
-        // percentage label 
+        // percentage label
         change = (y2 - y1) / y1
         midX   = int(math.avg(x1, x2))
         midY   = line.get_price(lnForecast, midX)
@@ -601,8 +710,7 @@ if not na(HB) and not na(LB) and not na(hiPrice) and not na(loPrice) and not na(
         array.push(perc, lb)
         future += segment
 
-
-    // ~~ Fib Volume Profile 
+    // ~~ Fib Volume Profile
     if showFibProfile and hiBar != loBar and not na(hiPrice) and not na(loPrice)
         for i = array.size(fibProfileBoxes) - 1 to 0
             cleaner(fibProfileBoxes, i)
@@ -622,69 +730,74 @@ if not na(HB) and not na(LB) and not na(hiPrice) and not na(loPrice) and not na(
 
             startBar = math.min(hiBar, loBar)
             endBar   = math.max(hiBar, loBar)
+            visibleStart = bar_index - minVisibleBars + 1
+            startBar := showHistorical ? startBar : math.max(startBar, visibleStart)
+            if endBar - startBar + 1 > minLoopBars
+                startBar := endBar - minLoopBars + 1
 
-            for bi = startBar to endBar
-                offset = bar_index - bi
-                price  = hlc3[offset]
-                vol    = volume[offset]
-                bull   = close[offset] > open[offset]
+            if startBar <= endBar
+                for bi = startBar to endBar
+                    offset = bar_index - bi
+                    price  = hlc3[offset]
+                    vol    = volume[offset]
+                    bull   = close[offset] > open[offset]
 
+                    for r = 0 to rows - 1
+                        dn = array.get(levels, r)
+                        up = array.get(levels, r + 1)
+                        if price >= dn and price < up
+                            if bull
+                                array.set(volUp, r, array.get(volUp, r) + vol)
+                            else
+                                array.set(volDn, r, array.get(volDn, r) + vol)
+                            break
+
+                maxTot = 0.0
                 for r = 0 to rows - 1
-                    dn = array.get(levels, r)
-                    up = array.get(levels, r + 1)
-                    if price >= dn and price < up
-                        if bull
-                            array.set(volUp, r, array.get(volUp, r) + vol)
-                        else
-                            array.set(volDn, r, array.get(volDn, r) + vol)
-                        break
+                    tot = array.get(volUp, r) + array.get(volDn, r)
+                    maxTot := math.max(maxTot, tot)
 
-            maxTot = 0.0
-            for r = 0 to rows - 1
-                tot = array.get(volUp, r) + array.get(volDn, r)
-                maxTot := math.max(maxTot, tot)
+                span = endBar - startBar + 1
 
-            span = endBar - startBar + 1
+                if maxTot > 0
+                    for r = 0 to rows - 1
+                        upVol = array.get(volUp, r)
+                        dnVol = array.get(volDn, r)
 
-            if maxTot > 0
-                for r = 0 to rows - 1
-                    upVol = array.get(volUp, r)
-                    dnVol = array.get(volDn, r)
+                        normUp = upVol == 0 ? 0 : int((upVol / maxTot) * span)
+                        normDn = dnVol == 0 ? 0 : int((dnVol / maxTot) * span)
 
-                    normUp = upVol == 0 ? 0 : int((upVol / maxTot) * span)
-                    normDn = dnVol == 0 ? 0 : int((dnVol / maxTot) * span)
+                        bullRowCol = color.from_gradient(r, 0, rows - 1, color.new(bull_color, 80), color.new(bull_color, 10))
+                        bearRowCol = color.from_gradient(r, 0, rows - 1, color.new(bear_color, 80), color.new(bear_color, 10))
 
-                    bullRowCol = color.from_gradient(r, 0, rows - 1, color.new(bull_color, 80), color.new(bull_color, 10))
-                    bearRowCol = color.from_gradient(r, 0, rows - 1, color.new(bear_color, 80), color.new(bear_color, 10))
+                        yTop    = array.get(levels, r + 1)
+                        yBottom = array.get(levels, r)
 
-                    yTop    = array.get(levels, r + 1)
-                    yBottom = array.get(levels, r)
+                        leftBull  = flipOrder ? startBar : startBar + normDn
+                        rightBull = flipOrder ? startBar + normUp : startBar + normDn + normUp
 
-                    leftBull  = flipOrder ? startBar : startBar + normDn
-                    rightBull = flipOrder ? startBar + normUp : startBar + normDn + normUp
+                        leftBear  = flipOrder ? startBar + normUp : startBar
+                        rightBear = flipOrder ? startBar + normUp + normDn : startBar + normDn
 
-                    leftBear  = flipOrder ? startBar + normUp : startBar
-                    rightBear = flipOrder ? startBar + normUp + normDn : startBar + normDn
+                        if normUp > 0
+                            bBull = box.new(
+                             leftBull,  yTop,
+                             rightBull, yBottom,
+                             bgcolor      = bullRowCol,
+                             border_color = color.new(bullRowCol, 0),
+                             border_style = line.style_dotted
+                             )
+                            array.push(fibProfileBoxes, bBull)
 
-                    if normUp > 0
-                        bBull = box.new(
-                         leftBull,  yTop,
-                         rightBull, yBottom,
-                         bgcolor      = bullRowCol,
-                         border_color = color.new(bullRowCol, 0),
-                         border_style = line.style_dotted
-                         )
-                        array.push(fibProfileBoxes, bBull)
-
-                    if normDn > 0
-                        bBear = box.new(
-                         leftBear,  yTop,
-                         rightBear, yBottom,
-                         bgcolor      = bearRowCol,
-                         border_color = color.new(bearRowCol, 0),
-                         border_style = line.style_dotted
-                         )
-                        array.push(fibProfileBoxes, bBear)
+                        if normDn > 0
+                            bBear = box.new(
+                             leftBear,  yTop,
+                             rightBear, yBottom,
+                             bgcolor      = bearRowCol,
+                             border_color = color.new(bearRowCol, 0),
+                             border_style = line.style_dotted
+                             )
+                            array.push(fibProfileBoxes, bBear)
 
     // Fib Volume Delta Profile
     if showFibDelta and hiBar != loBar and not na(hiPrice) and not na(loPrice)
@@ -710,58 +823,64 @@ if not na(HB) and not na(LB) and not na(hiPrice) and not na(loPrice) and not na(
 
             startBar = math.min(hiBar, loBar)
             endBar   = math.max(hiBar, loBar)
+            visibleStart = bar_index - minVisibleBars + 1
+            startBar := showHistorical ? startBar : math.max(startBar, visibleStart)
+            if endBar - startBar + 1 > minLoopBars
+                startBar := endBar - minLoopBars + 1
 
-            // accumulate bull/bear volume per band
-            for bi = startBar to endBar
-                offset = bar_index - bi
-                price  = hlc3[offset]
-                vol    = volume[offset]
-                bull   = close[offset] > open[offset]
+            if startBar <= endBar
+                // accumulate bull/bear volume per band
+                for bi = startBar to endBar
+                    offset = bar_index - bi
+                    price  = hlc3[offset]
+                    vol    = volume[offset]
+                    bull   = close[offset] > open[offset]
 
+                    for b = 0 to bandsCount - 1
+                        bandLow  = array.get(fibSorted, b)
+                        bandHigh = array.get(fibSorted, b + 1)
+                        if price >= bandLow and price < bandHigh
+                            if bull
+                                array.set(bandBull, b, array.get(bandBull, b) + vol)
+                            else
+                                array.set(bandBear, b, array.get(bandBear, b) + vol)
+                            break
+
+                // compute delta
+                maxAbsDelta = 0.0
                 for b = 0 to bandsCount - 1
-                    bandLow  = array.get(fibSorted, b)
-                    bandHigh = array.get(fibSorted, b + 1)
-                    if price >= bandLow and price < bandHigh
-                        if bull
-                            array.set(bandBull, b, array.get(bandBull, b) + vol)
-                        else
-                            array.set(bandBear, b, array.get(bandBear, b) + vol)
-                        break
-            // compute delta
-            maxAbsDelta = 0.0
-            for b = 0 to bandsCount - 1
-                delta = array.get(bandBull, b) - array.get(bandBear, b)
-                maxAbsDelta := math.max(maxAbsDelta, math.abs(delta))
-
-            if maxAbsDelta > 0
-                xStartBase = startBar
-
-                for b = 0 to bandsCount - 1
-                    bandLow  = array.get(fibSorted, b)
-                    bandHigh = array.get(fibSorted, b + 1)
-
                     delta = array.get(bandBull, b) - array.get(bandBear, b)
-                    if delta == 0
-                        continue
+                    maxAbsDelta := math.max(maxAbsDelta, math.abs(delta))
 
-                    absDelta  = math.abs(delta)
-                    widthBars = int((absDelta / maxAbsDelta) * deltaMaxWidth)
-                    widthBars := math.max(widthBars, 1)
+                if maxAbsDelta > 0
+                    xStartBase = startBar
 
-                    xEnd   = xStartBase        
-                    xStart = xStartBase - widthBars
-                    col    = delta >= 0 ? deltaBullColor : deltaBearColor
+                    for b = 0 to bandsCount - 1
+                        bandLow  = array.get(fibSorted, b)
+                        bandHigh = array.get(fibSorted, b + 1)
 
-                    dBox = box.new(
-                     xStart,  bandHigh,
-                     xEnd,    bandLow,
-                     bgcolor      = col,
-                     border_color = color.new(col, 0),
-                     border_style = line.style_solid,
-                     text         = "Δ " + str.tostring(delta, format.volume),
-                     text_color   = color.white,
-                     text_halign  = "center",
-                     text_valign  = "center"
-                     )
-                    array.push(fibDeltaBoxes, dBox)
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}                    
+                        delta = array.get(bandBull, b) - array.get(bandBear, b)
+                        if delta == 0
+                            continue
+
+                        absDelta  = math.abs(delta)
+                        widthBars = int((absDelta / maxAbsDelta) * deltaMaxWidth)
+                        widthBars := math.max(widthBars, 1)
+
+                        xEnd   = xStartBase
+                        xStart = xStartBase - widthBars
+                        col    = delta >= 0 ? deltaBullColor : deltaBearColor
+
+                        dBox = box.new(
+                         xStart,  bandHigh,
+                         xEnd,    bandLow,
+                         bgcolor      = col,
+                         border_color = color.new(col, 0),
+                         border_style = line.style_solid,
+                         text         = "Δ " + str.tostring(delta, format.volume),
+                         text_color   = color.white,
+                         text_halign  = "center",
+                         text_valign  = "center"
+                         )
+                        array.push(fibDeltaBoxes, dBox)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
