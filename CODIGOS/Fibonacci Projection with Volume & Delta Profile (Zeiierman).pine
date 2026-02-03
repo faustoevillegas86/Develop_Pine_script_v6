@@ -118,9 +118,18 @@ useAutoProfiles = input.bool(
      tooltip = t47
      )
 
+isStockType =
+     syminfo.type == "stock" or
+     syminfo.type == "fund" or
+     syminfo.type == "index" or
+     syminfo.type == "dr" or
+     syminfo.type == "right" or
+     syminfo.type == "warrant" or
+     syminfo.type == "structured"
+
 autoPreset =
      syminfo.type == "crypto" or syminfo.type == "forex" ? "Cripto majors / Forex" :
-     syminfo.type == "stock" or syminfo.type == "fund" or syminfo.type == "index" ? "Acciones/ETFs" :
+     isStockType ? "Acciones/ETFs" :
      syminfo.type == "bond" ? "Bonos" :
      "Cripto majors / Forex"
 
